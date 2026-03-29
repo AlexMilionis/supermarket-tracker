@@ -1,0 +1,3 @@
+- autocompletions on search bar
+- cart history
+- ui improvements

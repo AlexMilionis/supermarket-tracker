@@ -34,6 +34,7 @@ def get_price_history(product_id):
 @st.cache_data
 def build_hierarchical_items(df):
     items = []
+    # We use TreeItem here to be explicit, though sac.CasItem often works interchangeably
     for l1, group1 in df.groupby('category_level_1'):
         l1_children = []
         for l2, group2 in group1.groupby('category_level_2'):
@@ -41,10 +42,10 @@ def build_hierarchical_items(df):
             for l3, group3 in group2.groupby('category_level_3'):
                 l3_children = []
                 for _, row in group3.iterrows():
-                    l3_children.append(sac.CasItem(row['display_name']))
-                l2_children.append(sac.CasItem(l3, children=l3_children))
-            l1_children.append(sac.CasItem(l2, children=l2_children))
-        items.append(sac.CasItem(l1, children=l1_children))
+                    l3_children.append(sac.TreeItem(row['display_name']))
+                l2_children.append(sac.TreeItem(l3, children=l3_children))
+            l1_children.append(sac.TreeItem(l2, children=l2_children))
+        items.append(sac.TreeItem(l1, children=l1_children))
     return items
 
 # --- CART FUNCTIONS ---
@@ -70,7 +71,6 @@ with st.sidebar:
     if not st.session_state.cart:
         st.info("Your basket is empty.")
     else:
-        # Display items in a simple table or list
         cart_df = pd.DataFrame(st.session_state.cart)
         for _, item in cart_df.iterrows():
             st.write(f"**{item['name']}**")
@@ -97,21 +97,34 @@ else:
     df_products['category_level_3'] = df_products['category_level_3'].fillna("Unknown")
     df_products['display_name'] = df_products['name'] + " (" + df_products['brand'].fillna('N/A') + ")"
     
-    st.subheader("Select a Product")
-    cascader_items = build_hierarchical_items(df_products)
+    # --- Tree Selection Section ---
+    st.subheader("Explore Categories")
+    tree_items = build_hierarchical_items(df_products)
     
-    selected_value = sac.cascader(
-        items=cascader_items, 
-        label='', 
-        placeholder='Navigate categories to find a product...',
-        clear=True, 
-        search=True 
-    )
+    # 1. Add a simple search box above the tree
+    search_q = st.text_input("🔍 Quick search products...", placeholder="e.g. Φέτα")
     
-    leaf_selection = None
-    if selected_value:
-        leaf_selection = selected_value[-1] if isinstance(selected_value, list) else selected_value
+    # 2. Logic to handle search vs tree selection
+    quick_select = None
+    if search_q:
+        matches = df_products[df_products['display_name'].str.contains(search_q, case=False, na=False)]
+        if not matches.empty:
+            quick_select = st.selectbox("Search Results", matches['display_name'], index=None)
 
+    # 3. The Tree (Simplified to basics)
+    with st.container(height=400):
+        tree_selection = sac.tree(
+            items=tree_items,
+            label='',
+            open_all=False,
+            show_line=True,
+            key='main_product_tree'
+        )
+
+    # Final decision: Priority to Search, then Tree
+    leaf_selection = quick_select if quick_select else tree_selection
+
+    # Check if the selection is a product (and not a category name)
     if leaf_selection and leaf_selection in df_products['display_name'].values:
         selected_product_id = df_products.loc[df_products['display_name'] == leaf_selection, 'product_id'].iloc[0]
         
@@ -138,13 +151,11 @@ else:
             st.dataframe(display_details, use_container_width=True, hide_index=True)
 
         with col3:
-            # Action Buttons
             current_price = 0.0
             if not df_history.empty:
                 current_price = float(df_history['current_price'].iloc[0])
                 st.metric("Current Price", f"{current_price}€")
             
-            # THE ADD BUTTON
             if st.button("➕ Add to Basket", use_container_width=True, type="primary"):
                 add_to_cart(df_details['name'].iloc[0], current_price)
             
@@ -166,4 +177,4 @@ else:
         else:
             st.info("No price history available.")
     else:
-        st.info("👆 Please expand the categories above and select a specific product.")
+        st.info("👆 Expand the categories above and click on a product name.")

@@ -15,7 +15,7 @@ dependencies = [
     "streamlit",
     "sqlalchemy",
     "stqdm",
-    "streamlit_antd_components",
+    "streamlit-antd-components",
     "playwright",
     "chromium",
 ]
