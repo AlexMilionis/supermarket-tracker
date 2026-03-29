@@ -1,0 +1,21 @@
+[project]
+name = "supermarket"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "bs4",
+    "tabulate",
+    "requests",
+    "lxml",
+    "pandas",
+    "psycopg2-binary",
+    "python-dotenv",
+    "streamlit",
+    "sqlalchemy",
+    "stqdm",
+    "streamlit_antd_components",
+    "playwright",
+    "chromium",
+]
